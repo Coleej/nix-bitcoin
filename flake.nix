@@ -50,6 +50,52 @@
             services.clightning.enable = true;
 
             # ---------------------------------------------------------------------------
+            # LND — Lightning Network Daemon
+            # Must be enabled before charge-lnd can work
+            # Changed port to avoid conflict with clightning
+            # Changed REST port to avoid conflict with mempool
+            # ---------------------------------------------------------------------------
+            services.lnd = {
+              enable = true;
+              port = 9736;
+              restPort = 8081;
+            };
+
+            # ---------------------------------------------------------------------------
+            # Electrum indexer — required by mempool explorer
+            # ---------------------------------------------------------------------------
+            services.electrs.enable = true;
+
+            # ---------------------------------------------------------------------------
+            # Web explorers and management interfaces
+            # ---------------------------------------------------------------------------
+            services.mempool = {
+              enable = true;
+              electrumServer = "electrs";
+            };
+
+            services.rtl = {
+              enable = true;
+              nodes.lnd.enable = true;
+            };
+
+            services.btcpayserver = {
+              enable = true;
+              # Lightning backend: "clightning" or "lnd"
+              lightningBackend = "lnd";
+            };
+
+            # ---------------------------------------------------------------------------
+            # Automated fee management for LND
+            # ---------------------------------------------------------------------------
+            services.charge-lnd.enable = true;
+
+            # ---------------------------------------------------------------------------
+            # Liquid sidechain
+            # ---------------------------------------------------------------------------
+            services.liquidd.enable = true;
+
+            # ---------------------------------------------------------------------------
             # Operator — gives `cody` access to bitcoin-cli, lightning-cli, etc.
             # without needing sudo.
             # ---------------------------------------------------------------------------
