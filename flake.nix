@@ -30,7 +30,7 @@
 
           # nix-bitcoin overlay — kept in a separate inline module so it is
           # clearly separated from the general system config.
-          {
+          ({ pkgs, ... }: {
             # ---------------------------------------------------------------------------
             # nix-bitcoin secrets
             # ---------------------------------------------------------------------------
@@ -104,6 +104,29 @@
             services.liquidd.enable = true;
 
             # ---------------------------------------------------------------------------
+            # Alby Hub — Nostr Wallet Connect server
+            # ---------------------------------------------------------------------------
+            systemd.services.albyhub = {
+              wantedBy = [ "multi-user.target" ];
+              after = [ "lnd.service" ];
+              script = ''
+                export LN_BACKEND_TYPE=LND
+                export LND_ADDRESS=127.0.0.1:10009
+                export LND_CERT_FILE=/var/lib/lnd/tls.cert
+                export LND_MACAROON_FILE=/var/lib/lnd/data/chain/bitcoin/mainnet/admin.macaroon
+                export PORT=8082
+                export WORK_DIR=/var/lib/albyhub
+                export XDG_DATA_HOME=/var/lib/albyhub
+                exec ${pkgs.albyhub}/bin/albyhub
+              '';
+              serviceConfig = {
+                User = "cody";
+                Restart = "on-failure";
+                RestartSec = "10";
+              };
+            };
+
+            # ---------------------------------------------------------------------------
             # Operator — gives `cody` access to bitcoin-cli, lightning-cli, etc.
             # without needing sudo.
             # ---------------------------------------------------------------------------
@@ -111,7 +134,7 @@
               enable = true;
               name = "cody";
             };
-          }
+          })
         ];
       };
     };
