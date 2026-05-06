@@ -1,17 +1,9 @@
-# This is a system configuration template that uses nix-bitcoin.
-#
-# You can adapt this to an existing system flake by copying the parts
-# relevant to nix-bitcoin.
-#
-# Make sure to check and edit all lines marked by 'FIXME:'
-
 {
-  description = "A basic nix-bitcoin node";
+  description = "nix-bitcoin node — nixbit VM";
 
+  # Track the nix-bitcoin release branch; nixpkgs follows nix-bitcoin's pinned version
+  # to ensure all bitcoin services use tested package versions.
   inputs.nix-bitcoin.url = "github:fort-nix/nix-bitcoin/release";
-  # You can also use a version branch to track a specific NixOS release
-  # inputs.nix-bitcoin.url = "github:fort-nix/nix-bitcoin/nixos-25.11";
-
   inputs.nixpkgs.follows = "nix-bitcoin/nixpkgs";
   inputs.nixpkgs-unstable.follows = "nix-bitcoin/nixpkgs-unstable";
 
@@ -23,53 +15,48 @@
       ...
     }:
     {
-
       nixosConfigurations.mynode = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
+          # nix-bitcoin service definitions and secret management
           nix-bitcoin.nixosModules.default
 
-          # Optional:
-          # Import the secure-node preset, an opinionated config to enhance security
-          # and privacy.
-          #
+          # Optional: uncomment to apply the secure-node preset (tor, hardened SSH, etc.)
           # (nix-bitcoin + "/modules/presets/secure-node.nix")
 
+          # Hardware + base system (unchanged from the running VM)
+          ./hardware-configuration.nix
+          ./configuration.nix
+
+          # nix-bitcoin overlay — kept in a separate inline module so it is
+          # clearly separated from the general system config.
           {
-            # Automatically generate all secrets required by services.
-            # The secrets are stored in /etc/nix-bitcoin-secrets
+            # ---------------------------------------------------------------------------
+            # nix-bitcoin secrets
+            # ---------------------------------------------------------------------------
+            # Auto-generate all secrets required by enabled services.
+            # Secrets land in /etc/nix-bitcoin-secrets (root:root, mode 0400).
             nix-bitcoin.generateSecrets = true;
 
-            # Enable some services.
-            # See ../configuration.nix for all available features.
-            services.bitcoind.enable = true;
+            # ---------------------------------------------------------------------------
+            # Bitcoin services
+            # ---------------------------------------------------------------------------
+            services.bitcoind = {
+              enable = true;
+              # Store chain data on the dedicated disk mounted in hardware-configuration.nix
+              dataDir = "/mnt/bitcoind-chain";
+            };
+
             services.clightning.enable = true;
 
-            # When using nix-bitcoin as part of a larger NixOS configuration, set the following to enable
-            # interactive access to nix-bitcoin features (like bitcoin-cli) for your system's main user
+            # ---------------------------------------------------------------------------
+            # Operator — gives `cody` access to bitcoin-cli, lightning-cli, etc.
+            # without needing sudo.
+            # ---------------------------------------------------------------------------
             nix-bitcoin.operator = {
               enable = true;
-              # FIXME: Set this to your system's main user
-              name = "main";
+              name = "cody";
             };
-
-            # The system's main unprivileged user.
-            # In an existing NixOS configuration, this setting is usually already defined.
-            users.users.main = {
-              isNormalUser = true;
-              # FIXME: This is unsafe. Use `hashedpassword` or `passwordFile` instead in a real
-              # deployment: https://search.nixos.org/options?show=users.users.%3Cname%3E.hashedPassword
-              password = "a";
-            };
-
-            # If you use a custom nixpkgs version for evaluating your system
-            # (instead of `nix-bitcoin.inputs.nixpkgs` like in this example),
-            # consider setting `useVersionLockedPkgs = true` to use the exact pkgs
-            # versions for nix-bitcoin services that are tested by nix-bitcoin.
-            # The downsides are increased evaluation times and increased system
-            # closure size.
-            #
-            # nix-bitcoin.useVersionLockedPkgs = true;
           }
         ];
       };
