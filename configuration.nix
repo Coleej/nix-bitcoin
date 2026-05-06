@@ -81,6 +81,7 @@
       tree
       neovim
       opencode
+      git
     ];
   };
 
