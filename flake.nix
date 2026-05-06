@@ -109,6 +109,10 @@
             systemd.services.albyhub = {
               wantedBy = [ "multi-user.target" ];
               after = [ "lnd.service" ];
+              preStart = ''
+                mkdir -p /var/lib/albyhub
+                chown cody:cody /var/lib/albyhub
+              '';
               script = ''
                 export LN_BACKEND_TYPE=LND
                 export LND_ADDRESS=127.0.0.1:10009
