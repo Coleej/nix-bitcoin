@@ -72,6 +72,14 @@
             services.mempool = {
               enable = true;
               electrumServer = "electrs";
+              # Bind to all interfaces
+              address = "0.0.0.0";
+              # Frontend nginx config
+              frontend = {
+                enable = true;
+                address = "0.0.0.0";
+                port = 8080;
+              };
             };
 
             services.rtl = {
