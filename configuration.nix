@@ -119,15 +119,14 @@
 
   # Open ports in the firewall.
   networking.firewall.allowedTCPPorts = [
-    22     # SSH
-    8080   # mempool explorer
-    3000   # RTL (Ride The Lightning)
-    23000  # BTCPay Server
-    8081   # LND REST API
-    9736   # LND peer connections
+    22 # SSH
+    8080 # mempool explorer
+    3000 # RTL (Ride The Lightning)
+    8081 # LND REST API
+    9736 # LND peer connections
     # Liquid sidechain (optional - only if using Liquid)
-    7041   # Liquid RPC
-    7042   # Liquid P2P
+    7041 # Liquid RPC
+    7042 # Liquid P2P
   ];
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
