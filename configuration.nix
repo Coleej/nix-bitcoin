@@ -82,6 +82,7 @@
       neovim
       opencode
       git
+      jq
     ];
   };
 
