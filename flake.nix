@@ -47,10 +47,10 @@
                 enable = true;
                 # Store chain data on the dedicated disk mounted in hardware-configuration.nix
                 dataDir = "/mnt/bitcoind-chain";
-                extraConfig = "dbcache=200";
+                extraConfig = "dbcache=6000";
               };
 
-              services.clightning.enable = true;
+              # services.clightning.enable = true;
 
               # ---------------------------------------------------------------------------
               # LND — Lightning Network Daemon
@@ -58,69 +58,69 @@
               # Changed port to avoid conflict with clightning
               # Changed REST port to avoid conflict with mempool
               # ---------------------------------------------------------------------------
-              services.lnd = {
-                enable = true;
-                port = 9736;
-                restPort = 8081;
-              };
+              # services.lnd = {
+              #   enable = true;
+              #   port = 9736;
+              #   restPort = 8081;
+              # };
 
               # ---------------------------------------------------------------------------
               # Electrum indexer — required by mempool explorer
               # ---------------------------------------------------------------------------
-              services.electrs.enable = true;
+              # services.electrs.enable = true;
 
               # ---------------------------------------------------------------------------
               # Web explorers and management interfaces
               # ---------------------------------------------------------------------------
-              services.mempool = {
-                enable = true;
-                electrumServer = "electrs";
-                # Bind to all interfaces
-                address = "0.0.0.0";
-                # Frontend nginx config
-                frontend = {
-                  enable = true;
-                  address = "0.0.0.0";
-                  port = 8080;
-                };
-              };
+              # services.mempool = {
+              #   enable = true;
+              #   electrumServer = "electrs";
+              #   # Bind to all interfaces
+              #   address = "0.0.0.0";
+              #   # Frontend nginx config
+              #   frontend = {
+              #     enable = true;
+              #     address = "0.0.0.0";
+              #     port = 8080;
+              #   };
+              # };
 
-              services.rtl = {
-                enable = true;
-                nodes.lnd.enable = true;
-              };
+              # services.rtl = {
+              #   enable = true;
+              #   nodes.lnd.enable = true;
+              # };
 
               # ---------------------------------------------------------------------------
               # Liquid sidechain
               # ---------------------------------------------------------------------------
-              services.liquidd.enable = true;
+              # services.liquidd.enable = true;
 
               # ---------------------------------------------------------------------------
               # Alby Hub — Nostr Wallet Connect server
               # ---------------------------------------------------------------------------
-              systemd.services.albyhub = {
-                wantedBy = [ "multi-user.target" ];
-                after = [ "lnd.service" ];
-                preStart = ''
-                  mkdir -p /var/lib/albyhub
-                  chown cody:cody /var/lib/albyhub
-                '';
-                script = ''
-                  export LN_BACKEND_TYPE=LND
-                  export LND_ADDRESS=127.0.0.1:10009
-                  export LND_CERT_FILE=/var/lib/lnd/tls.cert
-                  export LND_MACAROON_FILE=/var/lib/lnd/data/chain/bitcoin/mainnet/admin.macaroon
-                  export PORT=8082
-                  export WORK_DIR=/var/lib/albyhub
-                  export XDG_DATA_HOME=/var/lib/albyhub
-                  exec ${pkgs.albyhub}/bin/albyhub
-                '';
-                serviceConfig = {
-                  User = "cody";
-                  Restart = "on-failure";
-                  RestartSec = "10";
-                };
-              };
+              # systemd.services.albyhub = {
+              #   wantedBy = [ "multi-user.target" ];
+              #   after = [ "lnd.service" ];
+              #   preStart = ''
+              #     mkdir -p /var/lib/albyhub
+              #     chown cody:cody /var/lib/albyhub
+              #   '';
+              #   script = ''
+              #     export LN_BACKEND_TYPE=LND
+              #     export LND_ADDRESS=127.0.0.1:10009
+              #     export LND_CERT_FILE=/var/lib/lnd/tls.cert
+              #     export LND_MACAROON_FILE=/var/lib/lnd/data/chain/bitcoin/mainnet/admin.macaroon
+              #     export PORT=8082
+              #     export WORK_DIR=/var/lib/albyhub
+              #     export XDG_DATA_HOME=/var/lib/albyhub
+              #     exec ${pkgs.albyhub}/bin/albyhub
+              #   '';
+              #   serviceConfig = {
+              #     User = "cody";
+              #     Restart = "on-failure";
+              #     RestartSec = "10";
+              #   };
+              # };
 
               # ---------------------------------------------------------------------------
               # Operator — gives `cody` access to bitcoin-cli, lightning-cli, etc.
