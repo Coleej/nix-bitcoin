@@ -101,8 +101,8 @@
               script = ''
                 export LN_BACKEND_TYPE=LND
                 export LND_ADDRESS=127.0.0.1:10009
-                export LND_CERT_FILE=/var/lib/lnd/tls.cert
-                export LND_MACAROON_FILE=/var/lib/lnd/data/chain/bitcoin/mainnet/admin.macaroon
+                export LND_CERT_FILE=/var/lib/lnd/.lnd/tls.cert
+                export LND_MACAROON_FILE=/var/lib/lnd/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
                 export PORT=8082
                 export WORK_DIR=/var/lib/albyhub
                 export XDG_DATA_HOME=/var/lib/albyhub
