@@ -117,6 +117,7 @@
 
             systemd.tmpfiles.rules = [
               "d /var/lib/albyhub 0755 cody users"
+              "d /var/lib/lnd/chain 0750 lnd lnd"
             ];
 
             # ---------------------------------------------------------------------------
