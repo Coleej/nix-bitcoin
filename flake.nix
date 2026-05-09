@@ -101,8 +101,8 @@
               script = ''
                 export LN_BACKEND_TYPE=LND
                 export LND_ADDRESS=127.0.0.1:10009
-                export LND_CERT_FILE=/var/lib/lnd/.lnd/tls.cert
-                export LND_MACAROON_FILE=/var/lib/lnd/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
+                export LND_CERT_FILE=/etc/nix-bitcoin-secrets/lnd-cert
+                export LND_MACAROON_FILE=/var/lib/lnd/chain/bitcoin/mainnet/admin.macaroon
                 export PORT=8082
                 export WORK_DIR=/var/lib/albyhub
                 export XDG_DATA_HOME=/var/lib/albyhub
@@ -117,7 +117,6 @@
 
             systemd.tmpfiles.rules = [
               "d /var/lib/albyhub 0755 cody users"
-              "d /var/lib/lnd/.lnd 0750 lnd lnd"
             ];
 
             # ---------------------------------------------------------------------------
