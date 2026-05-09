@@ -72,8 +72,7 @@
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.cody = {
     isNormalUser = true;
-    extraGroups = ["wheel"]; # Enable ‘sudo’ for the user.
-    initialPassword = "fmb777999";
+    extraGroups = ["wheel"]; # Enable 'sudo' for the user.
     packages = with pkgs; [
       tree
       neovim
@@ -110,8 +109,8 @@
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "yes";
-      PasswordAuthentication = true;
+      PermitRootLogin = "no";
+      PasswordAuthentication = false;
     };
   };
 
@@ -121,6 +120,7 @@
     8080 # mempool explorer
     3000 # RTL (Ride The Lightning)
     8081 # LND REST API
+    8082 # Alby Hub
     9736 # LND peer connections
     # Liquid sidechain (optional - only if using Liquid)
     7041 # Liquid RPC
