@@ -35,8 +35,9 @@
   };
   
   fileSystems."/mnt/data" = {
-    device = "/dev/disk/by-uuid/d5d9cd24-9dfb-4b14-8331-9ad784b0bbc5";
+    device = "/dev/disk/by-uuid/5b724edb-f818-4a06-afe1-9e85763f10cc";
     fsType = "ext4";
+    options = [ "nofail" "noatime" ];
   };
 
   swapDevices = [];
