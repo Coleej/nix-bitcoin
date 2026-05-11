@@ -33,6 +33,11 @@
     fsType = "ext4";
     options = ["noatime"];
   };
+  
+  fileSystems."/mnt/data" = {
+    device = "/dev/disk/by-uuid/d5d9cd24-9dfb-4b14-8331-9ad784b0bbc5";
+    fsType = "ext4";
+  };
 
   swapDevices = [];
 
