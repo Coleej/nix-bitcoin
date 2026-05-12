@@ -47,7 +47,10 @@
               extraConfig = "dbcache=1000";
             };
 
-            services.clightning.enable = true;
+            services.clightning = {
+              enable = true;
+              dataDir = "/mnt/data/clightning";
+            };
 
             # ---------------------------------------------------------------------------
             # LND — Lightning Network Daemon
@@ -57,6 +60,7 @@
             # ---------------------------------------------------------------------------
             services.lnd = {
               enable = true;
+              dataDir = "/mnt/data/lnd";
               port = 9736;
               restPort = 8081;
             };
@@ -64,7 +68,10 @@
             # ---------------------------------------------------------------------------
             # Electrum indexer — required by mempool explorer
             # ---------------------------------------------------------------------------
-            services.electrs.enable = true;
+            services.electrs = {
+              enable = true;
+              dataDir = "/mnt/data/electrs";
+            };
 
             # ---------------------------------------------------------------------------
             # Web explorers and management interfaces
@@ -80,8 +87,11 @@
               };
             };
 
+            services.mysql.dataDir = "/mnt/data/mysql";
+
             services.rtl = {
               enable = true;
+              dataDir = "/mnt/data/rtl";
               nodes.lnd.enable = true;
               address = "0.0.0.0";
               port = 3000;
@@ -90,7 +100,10 @@
             # ---------------------------------------------------------------------------
             # Liquid sidechain
             # ---------------------------------------------------------------------------
-            services.liquidd.enable = true;
+            services.liquidd = {
+              enable = true;
+              dataDir = "/mnt/data/liquidd";
+            };
 
             # ---------------------------------------------------------------------------
             # Alby Hub — Nostr Wallet Connect server
@@ -99,14 +112,14 @@
               wantedBy = ["multi-user.target"];
               after = ["lnd.service"];
               script = ''
-                export LN_BACKEND_TYPE=LND
-                export LND_ADDRESS=127.0.0.1:10009
-                export LND_CERT_FILE=/etc/nix-bitcoin-secrets/lnd-cert
-                export LND_MACAROON_FILE=/var/lib/lnd/chain/bitcoin/mainnet/admin.macaroon
-                export PORT=8082
-                export WORK_DIR=/var/lib/albyhub
-                export XDG_DATA_HOME=/var/lib/albyhub
-                exec ${pkgs.albyhub}/bin/albyhub
+                                  export LN_BACKEND_TYPE=LND
+                                  export LND_ADDRESS=127.0.0.1:10009
+                                  export LND_CERT_FILE=/etc/nix-bitcoin-secrets/lnd-cert
+                                  export LND_MACAROON_FILE=/mnt/data/lnd/chain/bitcoin/mainnet/admin.macaroon
+                                  export PORT=8082
+                export WORK_DIR=/mnt/data/albyhub
+                                export XDG_DATA_HOME=/mnt/data/albyhub
+                                  exec ${pkgs.albyhub}/bin/albyhub
               '';
               serviceConfig = {
                 User = "cody";
@@ -116,8 +129,7 @@
             };
 
             systemd.tmpfiles.rules = [
-              "d /var/lib/albyhub 0755 cody users"
-              "d /var/lib/lnd/chain 0750 lnd lnd"
+              "d /mnt/data/albyhub 0755 cody users"
             ];
 
             # ---------------------------------------------------------------------------
