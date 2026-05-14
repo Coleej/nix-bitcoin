@@ -51,7 +51,7 @@
               };
 
               services.clightning = {
-                enable = true;
+                enable = false;
                 dataDir = "/mnt/data/clightning";
               };
 
@@ -64,7 +64,7 @@
               services.lnd = {
                 enable = true;
                 dataDir = "/mnt/data/lnd";
-                port = 9736;
+                port = 9735;
                 restPort = 8081;
               };
 
