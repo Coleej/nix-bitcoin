@@ -148,6 +148,16 @@
               # Tools for bitcoing
               # ---------------------------------------------------------------------------
               nix-bitcoin.nodeinfo.enable = true;
+
+              # ---------------------------------------------------------------------------
+              # Backups
+              # ---------------------------------------------------------------------------
+              services.backups = {
+                enable = true;
+                destination = "file:///mnt/data/backups";
+                frequency = "daily";
+                # with-bulk-data = true;  # uncomment to include blockchain data
+              };
             }
           )
         ];
