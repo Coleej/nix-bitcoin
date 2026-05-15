@@ -15,7 +15,7 @@
       ...
     }:
     {
-      nixosConfigurations.mynode = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.nixbit = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           # nix-bitcoin service definitions and secret management
