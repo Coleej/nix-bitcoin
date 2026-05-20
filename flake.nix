@@ -47,7 +47,11 @@
                 enable = true;
                 # Store chain data on the dedicated disk mounted in hardware-configuration.nix
                 dataDir = "/mnt/bitcoind-chain";
-                extraConfig = "dbcache=1000";
+                extraConfig = ''
+                  dbcache=450
+                  maxmempool=300
+                  maxconnections=40
+                '';
               };
 
               services.clightning = {
