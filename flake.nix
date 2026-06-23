@@ -93,6 +93,11 @@
                   port = 8080;
                 };
               };
+              
+	      # Increase memory b/c mempool was crashing OOM cache restore after reboot
+	      systemd.services.mempool.environment = {
+  		NODE_OPTIONS = "--max-old-space-size=4096";
+	      };
 
               services.mysql.dataDir = "/mnt/data/mysql";
 
