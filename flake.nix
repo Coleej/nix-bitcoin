@@ -51,6 +51,11 @@
                 # accept inbound peer connections too, announced via the Tor
                 # onion service below.
                 listen = true;
+                # Without an outbound Tor proxy, bitcoind marks the onion
+                # network as unreachable and refuses to register our onion
+                # externalip as a local address (getnetworkinfo shows
+                # "onion": {"reachable": false} and empty "localaddresses").
+                tor.proxy = true;
                 extraConfig = ''
                   dbcache=450
                   maxmempool=300
@@ -74,6 +79,10 @@
                 dataDir = "/mnt/data/lnd";
                 port = 9735;
                 restPort = 8081;
+                # Needed to dial out to peers that only have an onion address
+                # (roughly half the Lightning network). Inbound connections
+                # over our own onion service work regardless of this setting.
+                tor.proxy = true;
               };
 
               # ---------------------------------------------------------------------------
