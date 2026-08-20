@@ -47,6 +47,10 @@
                 enable = true;
                 # Store chain data on the dedicated disk mounted in hardware-configuration.nix
                 dataDir = "/mnt/bitcoind-chain";
+                # Was outbound-only (listen=false is the nix-bitcoin default) —
+                # accept inbound peer connections too, announced via the Tor
+                # onion service below.
+                listen = true;
                 extraConfig = ''
                   dbcache=450
                   maxmempool=300
@@ -70,6 +74,23 @@
                 dataDir = "/mnt/data/lnd";
                 port = 9735;
                 restPort = 8081;
+              };
+
+              # ---------------------------------------------------------------------------
+              # Tor — gives bitcoind and LND a stable external address to
+              # announce to peers. The node sits behind NAT on a dynamic
+              # residential IP, so onion services (rather than clearnet
+              # port-forwarding) are the addresses nix-bitcoin can maintain
+              # without router changes. Traffic arrives over Tor via loopback,
+              # so both daemons stay bound to 127.0.0.1 (their defaults).
+              # ---------------------------------------------------------------------------
+              services.tor = {
+                enable = true;
+                client.enable = true;
+              };
+              nix-bitcoin.onionServices = {
+                bitcoind.public = true;
+                lnd.public = true;
               };
 
               # ---------------------------------------------------------------------------
