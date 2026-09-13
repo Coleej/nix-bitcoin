@@ -121,10 +121,10 @@
     3000 # RTL (Ride The Lightning)
     8081 # LND REST API
     8082 # Alby Hub
-    9736 # LND peer connections
-    # Liquid sidechain (optional - only if using Liquid)
-    7041 # Liquid RPC
-    7042 # Liquid P2P
+    9735 # LND peer connections
+    # # Liquid sidechain (disabled)
+    # 7041 # Liquid RPC
+    # 7042 # Liquid P2P
   ];
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
@@ -153,4 +153,12 @@
   #
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
   system.stateVersion = "25.11"; # Did you read the comment?
+
+  # Add swap for memory pressure
+  swapDevices = [
+    {
+      device = "/var/lib/swapfile";
+      size = 4096;
+    }
+  ];
 }
