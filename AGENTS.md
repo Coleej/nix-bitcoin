@@ -39,6 +39,20 @@ nixos-rebuild build --flake .#mynode
 nix fmt --check .
 ```
 
+### Remote deployment (build locally, push to nixbit)
+`cody` is a nix trusted-user on nixbit, so closures can be pushed without root:
+
+```bash
+# Build the toplevel locally
+nix build .#nixosConfigurations.nixbit.config.system.build.toplevel
+
+# Push closure to nixbit
+nix copy --to ssh://cody@nixbit ./result
+
+# Activate on nixbit (sudo over ssh)
+ssh -t cody@nixbit "sudo $(readlink -f result)/bin/switch-to-configuration switch"
+```
+
 ### Build a single test (if available in upstream nix-bitcoin)
 ```bash
 # Run tests from nix-bitcoin project (not this flake)

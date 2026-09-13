@@ -17,6 +17,8 @@
     "nix-command"
     "flakes"
   ];
+  # Allow cody to push store paths to this machine (remote deployments)
+  nix.settings.trusted-users = ["cody"];
 
   # Use the GRUB 2 boot loader.
   boot.loader.grub = {
@@ -126,6 +128,8 @@
     # 7041 # Liquid RPC
     # 7042 # Liquid P2P
   ];
+  # Bitcoin Core RPC — Tailscale interface only (for Sparrow on desktop)
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = [8332];
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
