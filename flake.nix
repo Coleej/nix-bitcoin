@@ -1,9 +1,12 @@
 {
   description = "nix-bitcoin node — nixbit VM";
 
-  # Track the nix-bitcoin release branch; nixpkgs follows nix-bitcoin's pinned version
-  # to ensure all bitcoin services use tested package versions.
-  inputs.nix-bitcoin.url = "github:fort-nix/nix-bitcoin/release";
+  # nix-bitcoin is ARCHIVED and unmaintained as of 2026-08-13; v0.0.139 is its
+  # final release and no further updates or security fixes will come from it.
+  # Pin the tag rather than the `release` branch: both resolve to commit
+  # 37931e52881956c7d6ace2f56415f54b012000a1 today, but the tag cannot be
+  # moved or deleted out from under us.
+  inputs.nix-bitcoin.url = "github:fort-nix/nix-bitcoin/v0.0.139";
   inputs.nixpkgs.follows = "nix-bitcoin/nixpkgs";
   inputs.nixpkgs-unstable.follows = "nix-bitcoin/nixpkgs-unstable";
 
