@@ -7,8 +7,16 @@
   # 37931e52881956c7d6ace2f56415f54b012000a1 today, but the tag cannot be
   # moved or deleted out from under us.
   inputs.nix-bitcoin.url = "github:fort-nix/nix-bitcoin/v0.0.139";
-  inputs.nixpkgs.follows = "nix-bitcoin/nixpkgs";
-  inputs.nixpkgs-unstable.follows = "nix-bitcoin/nixpkgs-unstable";
+
+  # nixpkgs deliberately does NOT follow nix-bitcoin. nix-bitcoin is archived
+  # and its nixpkgs pin is frozen at a 2026-08-09 revision, which meant this
+  # node stopped receiving security backports for the whole base system. The
+  # bitcoin-stack packages are unaffected: nix-bitcoin's overlay still pins
+  # them (pkgs/pinned.nix) while taking everything else from our pkgs, and it
+  # pulls lnd/btcpayserver/fulcrum from its own frozen nixpkgs-unstable.
+  # Tracking the supported stable branch keeps getting kernel, nginx, tor,
+  # tailscale, mariadb and openssl fixes. Bump to nixos-26.11 when cut.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
   outputs = {
     self,

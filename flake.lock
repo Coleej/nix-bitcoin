@@ -115,17 +115,26 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1791426274,
+        "narHash": "sha256-MWhktfFtFE8Jl7bf9Pkp7TR5MSdYCjCswSo0Gkb4ywc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "7c8764b7c7b09b34f632464276218ef9090eaa11",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "nix-bitcoin": "nix-bitcoin",
-        "nixpkgs": [
-          "nix-bitcoin",
-          "nixpkgs"
-        ],
-        "nixpkgs-unstable": [
-          "nix-bitcoin",
-          "nixpkgs-unstable"
-        ]
+        "nixpkgs": "nixpkgs_2"
       }
     },
     "systems": {
