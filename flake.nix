@@ -40,7 +40,11 @@
         # nix-bitcoin overlay — kept in a separate inline module so it is
         # clearly separated from the general system config.
         (
-          {pkgs, ...}: {
+          {
+            lib,
+            pkgs,
+            ...
+          }: {
             # ---------------------------------------------------------------------------
             # nix-bitcoin secrets
             # ---------------------------------------------------------------------------
@@ -170,25 +174,54 @@
             # };
 
             # ---------------------------------------------------------------------------
-            # Alby Hub — Nostr Wallet Connect server
+            # Alby Hub — Nostr Wallet Connect server.
+            # No upstream NixOS module exists (nix-bitcoin PR #794 "albyhub: add
+            # module" was closed unmerged, and nix-bitcoin is now archived), so
+            # this unit stays hand-rolled. It runs as `cody` rather than a system
+            # user because the LND macaroon it reads lives in the user's data dir.
             # ---------------------------------------------------------------------------
             systemd.services.albyhub = {
+              description = "Alby Hub — Nostr Wallet Connect server for LND";
               wantedBy = ["multi-user.target"];
               after = ["lnd.service"];
-              script = ''
-                                  export LN_BACKEND_TYPE=LND
-                                  export LND_ADDRESS=127.0.0.1:10009
-                                  export LND_CERT_FILE=/etc/nix-bitcoin-secrets/lnd-cert
-                                  export LND_MACAROON_FILE=/mnt/data/lnd/chain/bitcoin/mainnet/admin.macaroon
-                                  export PORT=8082
-                export WORK_DIR=/mnt/data/albyhub
-                                export XDG_DATA_HOME=/mnt/data/albyhub
-                                  exec ${pkgs.albyhub}/bin/albyhub
-              '';
+              environment = {
+                LN_BACKEND_TYPE = "LND";
+                LND_ADDRESS = "127.0.0.1:10009";
+                LND_CERT_FILE = "/etc/nix-bitcoin-secrets/lnd-cert";
+                LND_MACAROON_FILE = "/mnt/data/lnd/chain/bitcoin/mainnet/admin.macaroon";
+                PORT = "8082";
+                WORK_DIR = "/mnt/data/albyhub";
+                XDG_DATA_HOME = "/mnt/data/albyhub";
+              };
               serviceConfig = {
+                ExecStart = "${lib.getExe pkgs.albyhub}";
                 User = "cody";
+                WorkingDirectory = "/mnt/data/albyhub";
+                # Required because ProtectSystem=strict below remounts the whole
+                # hierarchy read-only. nix-bitcoin pairs these the same way
+                # (modules/lnd.nix:263, modules/rtl.nix:222).
+                ReadWritePaths = ["/mnt/data/albyhub"];
                 Restart = "on-failure";
                 RestartSec = "10";
+                # Mirrors nix-bitcoin's defaultHardening profile (pkgs/lib.nix),
+                # minus the directives that would block outbound network access.
+                # ProtectHome is safe: the macaroon is under /mnt/data, not $HOME.
+                PrivateTmp = true;
+                ProtectSystem = "strict";
+                ProtectHome = true;
+                NoNewPrivileges = true;
+                ProtectKernelTunables = true;
+                ProtectKernelModules = true;
+                ProtectKernelLogs = true;
+                ProtectControlGroups = true;
+                ProtectClock = true;
+                ProtectProc = "invisible";
+                ProcSubset = "pid";
+                LockPersonality = true;
+                RemoveIPC = true;
+                RestrictSUIDSGID = true;
+                RestrictRealtime = true;
+                SystemCallArchitectures = "native";
               };
             };
 
