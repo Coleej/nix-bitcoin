@@ -225,6 +225,36 @@ now archived. Points to watch when editing it:
   network access, so do not add `IPAddressDeny` or a loopback-only
   `RestrictAddressFamilies`.
 
+### Known issue: Alby Hub holds LND's admin macaroon
+
+`LND_MACAROON_FILE` points at `admin.macaroon`, whose baked permissions are
+unrestricted:
+
+```
+address:read/write  info:read/write  invoices:read/write  message:read/write
+macaroon:read/write  macaroon:generate  offchain:read/write  onchain:read/write
+peers:read/write  signer:generate  signer:read
+```
+
+That means anyone who compromises Alby Hub gets the whole node: send payments,
+open/close channels, sign arbitrary messages, and — because of
+`macaroon:generate` — mint themselves a *fresh* admin macaroon that survives
+rotating this file. Alby Hub binds `0.0.0.0:8082` with the port open on every
+interface, so it is reachable from the LAN and the tailnet. Alby Hub's own
+authentication is irrelevant past that point: every action it performs runs with
+admin rights.
+
+Scope: Alby Hub's LND backend needs `invoices:read/write`, `offchain:read/write`
+and `info:read`; it should not need `macaroon:generate`, `message:write`,
+`peers:write` or `address:write`. A scoped macaroon can be baked with
+`lncli bakemacaroon --macaroonperm ...`. Purpose-scoped macaroons already exist
+on disk next to it (`invoice.macaroon`, `readonly.macaroon`).
+
+Not yet done, deliberately: the exact permission set Alby Hub needs is inferred,
+not tested, and switching macaroons means Alby's stored credentials change and
+the NWC clients may need re-pairing. Treat it as its own change with a backup of
+`/mnt/data/albyhub` and a close eye on `journalctl -u albyhub`.
+
 ## Adding Services
 
 ### Enable a new service
