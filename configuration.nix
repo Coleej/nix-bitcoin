@@ -134,11 +134,16 @@
   # `extraConfig` text so a typo is a type error at eval time instead of a
   # silently broken sudoers file.
   #
-  # The trailing `""` is sudoers' any-arguments marker. It is used
-  # deliberately for the read-only verbs so trivial argument differences do not
-  # block an agent. It is NOT used for systemctl, because systemctl also has
-  # root-editing subcommands (edit, set-property, link) that must not become
-  # reachable.
+  # Sudoers argument matching, verified on this node with `sudo -n`: a rule
+  # with NO argument specifier matches the command with ANY arguments, while a
+  # trailing `""` means NO arguments are allowed. `""` is therefore deliberately
+  # absent here — using it would make each rule usable only with zero arguments,
+  # i.e. `systemctl is-active` would be permitted but `systemctl is-active
+  # bitcoind` would not be.
+  #
+  # What the command choices permit: systemctl also has root-editing
+  # subcommands (edit, set-property, link), so only the specific verbs below are
+  # granted rather than systemctl as a whole.
   #
   # Note: this targets classic sudo (`security.sudo`, enabled by default). If
   # you ever switch this node to `security.sudo-rs`, re-check the rule — sudo-rs
@@ -151,7 +156,7 @@
       runAs = "root";
       commands = [
         {
-          command = ''/run/current-system/sw/bin/nixos-rebuild ""'';
+          command = ''/run/current-system/sw/bin/nixos-rebuild'';
           options = [
             "NOPASSWD"
           ];
@@ -163,67 +168,67 @@
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl status ""'';
+          command = ''/run/current-system/sw/bin/systemctl status'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl show ""'';
+          command = ''/run/current-system/sw/bin/systemctl show'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl is-active ""'';
+          command = ''/run/current-system/sw/bin/systemctl is-active'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl is-enabled ""'';
+          command = ''/run/current-system/sw/bin/systemctl is-enabled'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl list-units ""'';
+          command = ''/run/current-system/sw/bin/systemctl list-units'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl list-unit-files ""'';
+          command = ''/run/current-system/sw/bin/systemctl list-unit-files'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl cat ""'';
+          command = ''/run/current-system/sw/bin/systemctl cat'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl start ""'';
+          command = ''/run/current-system/sw/bin/systemctl start'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl stop ""'';
+          command = ''/run/current-system/sw/bin/systemctl stop'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl restart ""'';
+          command = ''/run/current-system/sw/bin/systemctl restart'';
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl reload ""'';
+          command = ''/run/current-system/sw/bin/systemctl reload'';
           options = [
             "NOPASSWD"
           ];
@@ -235,7 +240,7 @@
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/journalctl ""'';
+          command = ''/run/current-system/sw/bin/journalctl'';
           options = [
             "NOPASSWD"
           ];
