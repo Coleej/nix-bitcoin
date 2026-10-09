@@ -1,0 +1,5 @@
+# `nix build` symlink. Not needed: deploy with the explicit store path from
+# `nix eval` (see the remote deployment section in AGENTS.md) so there is no
+# chance of pushing a stale closure left over from an earlier build.
+result
+result-*

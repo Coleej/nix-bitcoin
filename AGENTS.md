@@ -40,18 +40,27 @@ nix fmt --check .
 ```
 
 ### Remote deployment (build locally, push to nixbit)
-`cody` is a nix trusted-user on nixbit, so closures can be pushed without root:
+`cody` is a nix trusted-user on nixbit, so closures can be pushed without root.
+Resolve the store path explicitly rather than relying on the `./result`
+symlink, so a stale build output cannot be pushed by accident:
 
 ```bash
-# Build the toplevel locally
-nix build .#nixosConfigurations.nixbit.config.system.build.toplevel
+# Resolve the closure path from the flake + lock
+Toplevel=$(nix eval --raw .#nixosConfigurations.nixbit.config.system.build.toplevel)
+
+# Build it (--no-link skips creating ./result entirely)
+nix build --no-link "$Toplevel"
 
 # Push closure to nixbit
-nix copy --to ssh://cody@nixbit ./result
+nix copy --to ssh://cody@nixbit "$Toplevel"
 
 # Activate on nixbit (sudo over ssh)
-ssh -t cody@nixbit "sudo $(readlink -f result)/bin/switch-to-configuration switch"
+ssh -t cody@nixbit "sudo $Toplevel/bin/switch-to-configuration switch"
 ```
+
+A new kernel only takes effect after a reboot:
+`ssh -t cody@nixbit 'sudo reboot'`, then verify with
+`ssh cody@nixbit 'nixos-version; uname -r; systemctl --failed'`.
 
 ### Build a single test (if available in upstream nix-bitcoin)
 ```bash

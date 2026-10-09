@@ -199,9 +199,10 @@ No module option-surface changes exist between the two revisions for every modul
 ```bash
 sudo nixos-rebuild dry-activate --flake .#nixbit          # if run on nixbit itself
 # or, preferred (from this machine):
-nix build .#nixosConfigurations.nixbit.config.system.build.toplevel
-nix copy --to ssh://cody@nixbit ./result
-ssh -t cody@nixbit "sudo $(readlink -f result)/bin/switch-to-configuration switch"
+Toplevel=$(nix eval --raw .#nixosConfigurations.nixbit.config.system.build.toplevel)
+nix build --no-link "$Toplevel"
+nix copy --to ssh://cody@nixbit "$Toplevel"
+ssh -t cody@nixbit "sudo $Toplevel/bin/switch-to-configuration switch"
 ```
 
 After switching: `systemctl --failed`, `bitcoin-cli getblockchaininfo`, `lncli getinfo`,
