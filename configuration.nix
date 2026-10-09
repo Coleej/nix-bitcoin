@@ -114,11 +114,20 @@ in {
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
+  # Key-only SSH. Password auth was enabled while the node still bound web
+  # services to every interface; with the firewall now closed down it is
+  # unnecessary exposure, so it matches the sibling ../nixos-hermes host.
+  # Verified working before changing: key-only login to cody@nixbit succeeds,
+  # and ~/.ssh/authorized_keys holds 5 keys including this workstation's
+  # SHA256:GEQe4I9BuKnLliO//+6QKoR8evr3MhsI+wJKmXi37Us.
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "no";
-      PasswordAuthentication = true;
+      PasswordAuthentication = false;
+      # Also refuse keyboard-interactive, which is a separate PAM path that can
+      # still offer a password prompt even with PasswordAuthentication off.
+      KbdInteractiveAuthentication = false;
     };
   };
 
