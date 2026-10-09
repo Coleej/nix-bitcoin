@@ -116,6 +116,146 @@
     };
   };
 
+  # ---------------------------------------------------------------------------
+  # Passwordless sudo for agents
+  # ---------------------------------------------------------------------------
+  # Lets an automated agent deploy to this node without an interactive password,
+  # while still requiring a password for everything else. Declared here rather
+  # than hand-edited into /etc/sudoers.d so the grant is part of the closure,
+  # survives rebuilds, and is revoked by removing this block.
+  #
+  # SECURITY: any grant that permits deploying is effectively root. Activating a
+  # closure runs that closure's code as root, and `cody` is in
+  # nix.settings.trusted-users, so it can build a closure containing anything.
+  # Scoping does not make deploying safe; it only limits non-deploy commands.
+  # Treat this account as root-equivalent.
+  #
+  # Written with the structured `extraRules` form rather than raw
+  # `extraConfig` text so a typo is a type error at eval time instead of a
+  # silently broken sudoers file.
+  #
+  # The trailing `""` is sudoers' any-arguments marker. It is used
+  # deliberately for the read-only verbs so trivial argument differences do not
+  # block an agent. It is NOT used for systemctl, because systemctl also has
+  # root-editing subcommands (edit, set-property, link) that must not become
+  # reachable.
+  #
+  # Note: this targets classic sudo (`security.sudo`, enabled by default). If
+  # you ever switch this node to `security.sudo-rs`, re-check the rule — sudo-rs
+  # implements only a subset of sudoers and has different wildcard handling.
+  security.sudo.extraRules = [
+    {
+      users = [
+        "cody"
+      ];
+      runAs = "root";
+      commands = [
+        {
+          command = ''/run/current-system/sw/bin/nixos-rebuild ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = "/nix/store/*/bin/switch-to-configuration";
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl status ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl show ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl is-active ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl is-enabled ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl list-units ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl list-unit-files ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl cat ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl start ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl stop ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl restart ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/systemctl reload ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = "/run/current-system/sw/bin/systemctl daemon-reload";
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = ''/run/current-system/sw/bin/journalctl ""'';
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = "/run/current-system/sw/bin/nixos-version";
+          options = [
+            "NOPASSWD"
+          ];
+        }
+        {
+          command = "/run/current-system/sw/bin/nix-collect-garbage";
+          options = [
+            "NOPASSWD"
+          ];
+        }
+      ];
+    }
+  ];
+
   # Open ports in the firewall.
   # Audited against `ss -tln` on 2026-10-08: every entry below has a matching
   # socket bound to a routable address. Ports that sound relevant but are
