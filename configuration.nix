@@ -124,6 +124,12 @@
     22 # SSH
     8080 # mempool explorer (nginx)
     3000 # RTL (Ride The Lightning)
+    8081 # LND REST API — kept open deliberately. RTL uses this on
+    # loopback (its lnServerUrl is https://127.0.0.1:8081), and the rule
+    # is the half you would still need if LND REST is ever opened to
+    # incoming connections. Note it is inert while
+    # services.lnd.restAddress stays 127.0.0.1: changing restAddress is
+    # the part that actually exposes the port.
     8082 # Alby Hub
     # # Liquid sidechain (disabled)
     # 7041 # Liquid RPC
@@ -138,11 +144,10 @@
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = [8332];
 
   # Deliberately not opened:
-  #   8081 — LND REST binds 127.0.0.1 only (nix-bitcoin's restAddress
-  #          default), so no firewall rule is needed or useful.
-  #   9735 — LND's clearnet P2P port also binds 127.0.0.1 because
-  #          services.lnd.tor.proxy is true; inbound peers arrive over Tor
-  #          via nix-bitcoin.onionServices.lnd.public.
+  #   9735 — LND's clearnet P2P port binds 127.0.0.1 because
+  #          services.lnd.tor.proxy is true; inbound peers arrive over Tor via
+  #          nix-bitcoin.onionServices.lnd.public. Re-open this if tor.proxy is
+  #          ever turned off.
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
