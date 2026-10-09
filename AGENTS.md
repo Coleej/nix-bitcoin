@@ -67,8 +67,11 @@ sudo nixos-rebuild switch --flake .#nixbit
 # Build only (no switch)
 nixos-rebuild build --flake .#nixbit
 
-# Check formatting (alejandra, wired up as flake.formatter)
-nix fmt --check
+# Check formatting. Note `nix fmt --check` does NOT work: nix itself parses
+# --check and errors out. Use alejandra directly, and pass explicit paths —
+# bare `nix fmt` passes this repo no files and alejandra then reads empty stdin
+# and fails with "unexpected end of file".
+nix run nixpkgs#alejandra -- --check flake.nix configuration.nix
 ```
 
 ### Remote deployment (build locally, push to nixbit)
@@ -115,11 +118,14 @@ module options directly, e.g. `services.bitcoind.enable = true;`.
 
 ### Format all .nix files
 ```bash
-# Using alejandra (idempotent, no-conflict formatting)
-nix fmt
+# Using alejandra (idempotent, no-conflict formatting).
+# Pass explicit paths: bare `nix fmt` hands alejandra no files, so it reads
+# empty stdin and fails with "unexpected end of file".
+nix run nixpkgs#alejandra -- flake.nix configuration.nix
 
-# Or directly
-alejandra .
+# Do NOT run the formatter over hardware-configuration.nix. It is
+# auto-generated, so reformatting it only creates churn that the next
+# nixos-generate-config run reverts.
 ```
 
 ### Check formatting
@@ -160,7 +166,7 @@ nix flake metadata .
 
 ### Nix Language Style
 
-- **Formatter**: `alejandra` (idempotent, no-conflict). Run `nix fmt` before committing.
+- **Formatter**: `alejandra` (idempotent, no-conflict). Run it with explicit paths before committing — see Formatting / Linting for why bare `nix fmt` does not work here.
 - **Indentation**: 2 spaces.
 - **Attribute ordering**: Logical — imports first, then options, then values.
 - **Imports**: Single `imports = []` block at top of module.
@@ -269,7 +275,7 @@ the NWC clients may need re-pairing. Treat it as its own change with a backup of
    services.<service>.enable = true;
    ```
 
-3. Run `nix fmt` and `sudo nixos-rebuild dry-activate --flake .#nixbit`
+3. Run `nix run nixpkgs#alejandra -- flake.nix configuration.nix`, then `sudo nixos-rebuild dry-activate --flake .#nixbit`
 
 ### Common services
 
@@ -288,11 +294,48 @@ because no upstream module exists (nix-bitcoin PR #794 was closed unmerged).
 
 ## Workflow Tips
 
-- **Before committing**: Run `nix fmt`
+- **Before committing**: `nix run nixpkgs#alejandra -- flake.nix configuration.nix`
+  (see the note above on why not bare `nix fmt`)
+- **`git add` new files before building.** Nix flakes only see files tracked by
+  git. An untracked file is silently ignored, and the build fails with a
+  confusing `does not provide attribute` or `git -C ... add ...` error rather
+  than a clear "file not found".
 - **Debugging**: Use `nix eval .#nixosConfigurations.nixbit.config.services.bitcoind.settings`
 - **flake.lock**: Commit for reproducible builds. Update with `nix flake update`
 - **Testing changes**: Always use `nixos-rebuild dry-activate` first
 - **VM testing**: Use `nixos-rebuild test --flake .#nixbit` or test in a VM before production
+
+## Approval policy for sensitive changes
+
+**Never modify security-sensitive NixOS options without explicit user approval.**
+This includes at minimum:
+
+- `security.sudo` (including `extraRules`, `wheelNeedsPassword`, and the
+  hand-rolled `agentsystemctl` wrapper it depends on)
+- `users.users` and group membership
+- `nix.settings.trusted-users` — membership here grants the ability to write to
+  `/nix/store`, which is what makes the passwordless sudo grant in
+  configuration.nix equivalent to root
+- systemd hardening: `NoNewPrivileges`, `ProtectSystem`, `PrivateTmp`,
+  `PrivateUsers`, `CapabilityBoundingSet`, `SystemCallFilter`, `ReadWritePaths`
+- `services.openssh` settings and any `networking.firewall` change
+- anything that grants a new privilege or weakens an existing sandbox
+
+If such a change seems necessary, propose it, state the blast radius plainly,
+and wait for explicit consent before committing. Two examples of blast-radius
+statements that proved necessary here:
+
+- "this grant is effectively root" — because `cody` is a trusted user, so it can
+  build a closure containing anything, and activating a closure runs its code as
+  root. Scoping a sudo grant limits *non-deploy* commands only.
+- "`ProtectSystem = strict` requires `ReadWritePaths`" — without it the service
+  cannot write its data directory, and the failure appears only at runtime, not
+  at eval time.
+
+Prefer runtime verification over confident reasoning. Every real defect found
+while modernising this node was one that evaluated, built, and looked correct:
+a missing `ReadWritePaths`, a misread sudoers argument marker, and sudoers
+subcommands that cannot express what they appear to.
 
 ## Security Notes
 
