@@ -1,6 +1,7 @@
 # Implementation plan — modernize `nixbit` after the nix-bitcoin archive
 
-- **Status:** ready for implementation (phases are ordered; each is independently deployable)
+- **Status:** Phases 1-3 **shipped and deployed** (2026-10-08). Phase 6 mostly
+  done. Phases 4-5 outstanding. See "Execution log" below.
 - **Written:** 2026-10-07
 - **Repo:** `/home/cody/Projects/Nix/nix-bitcoin` (branch `main`, remote `git@github.com:Coleej/nix-bitcoin.git`)
 - **Target host:** `nixbit` (VM; user `cody` is a nix trusted-user, so closures can be pushed without root)
@@ -199,8 +200,8 @@ No module option-surface changes exist between the two revisions for every modul
 ```bash
 sudo nixos-rebuild dry-activate --flake .#nixbit          # if run on nixbit itself
 # or, preferred (from this machine):
-Toplevel=$(nix eval --raw .#nixosConfigurations.nixbit.config.system.build.toplevel)
-nix build --no-link "$Toplevel"
+Toplevel=$(nix build --no-link --print-out-paths \
+  .#nixosConfigurations.nixbit.config.system.build.toplevel)
 nix copy --to ssh://cody@nixbit "$Toplevel"
 ssh -t cody@nixbit "sudo $Toplevel/bin/switch-to-configuration switch"
 ```
@@ -487,8 +488,10 @@ Update `AGENTS.md`:
 
 ## 10. Open decisions (resolve before starting Phase 4/5)
 
-- [ ] **Q1** — Is `nixbit` administered over Tailscale or over the LAN? Determines whether Phase 4
-      item 1 is safe as written.
+**Q1 is answered** (see execution log): SSH arrives over Tailscale from peer `x1`,
+so restricting port 22 to `tailscale0` would *not* lock the operator out. The
+operator has nevertheless chosen **not** to move the web ports to `tailscale0` —
+the node is behind home NAT with no global IPv6, so the exposure is LAN-only.
 - [ ] **Q2** — RTL: vendor 0.15.13 (5.1), bind-to-localhost-only and stay on 0.15.8, or drop RTL (5.2)?
 - [ ] **Q3** — Include the Alby Hub admin-macaroon → restricted-macaroon rotation (Phase 4 item 4)?
 - [ ] **Q4** — Track unreleased nixpkgs master for albyhub/tailscale (5.3/5.4), or wait for
@@ -561,6 +564,107 @@ Rate limits apply unauthenticated (GitHub returned 403s during this investigatio
 endpoints; `<owner>/<repo>/security-advisories` and per-release fetches worked
 intermittently). nginx advisories live at <https://nginx.org/en/security_advisories.html>, not in
 the GitHub API.
+
+## Execution log (2026-10-08)
+
+### Shipped
+
+| Commit | Phase | Change |
+|---|---|---|
+| `b3ca8c9` | 1 | `inputs.nix-bitcoin.url` -> `github:fort-nix/nix-bitcoin/v0.0.139`; lock off the 25.11 rev |
+| `e1b6403` | 2 | `inputs.nixpkgs.url` -> `github:NixOS/nixpkgs/nixos-26.05`; dropped unused `nixpkgs-unstable` |
+| `a2cb9be` | 3 | Alby Hub unit rewritten declaratively + hardened |
+| `7c73399` | — | `.gitignore` + deploy flow no longer uses `./result` |
+
+Deployed to `nixbit`, rebooted, 0 failed units, 0 error-priority journal lines
+across bitcoind/lnd/mempool/electrs/rtl/mysql/tor. Verified from the live units:
+
+```
+bitcoind 31.1.0   lnd 0.21.1-beta   electrs 0.11.0   rtl 0.15.8
+mempool-backend 3.2.1   albyhub 1.22.2   nginx 1.30.5   tor 0.4.9.14
+mariadb 11.4.12   tailscale 1.98.10   kernel 6.18.55   nixos 26.05.20261008.7c8764b
+```
+
+Closure: `/nix/store/2zdm6bq24mxp8mqvdpwsqpmfv02mgjww-nixos-system-nixbit-26.05.20261008.7c8764b`
+(930 paths, 0 missing refs on the node). Rollback generation:
+`/nix/var/nix/profiles/system-38-link` (the old 25.11 system). Keep it until
+satisfied, then `nix-collect-garbage`.
+
+Backup: `/mnt/data/pre-upgrade-20261008-073731` (297M — secrets, albyhub DB,
+mariadb datadir, lnd channel backup, state snapshots).
+
+### Corrections to this plan
+
+Things here that turned out to be wrong or incomplete once executed:
+
+- **`lncli chanbackup export` is wrong** — LND 0.21 exposes it as
+  `lncli exportchanbackup --all`. It is also usable as `cody` thanks to
+  `nix-bitcoin.operator`.
+- **Phase 3 needed `ReadWritePaths`.** `ProtectSystem = "strict"` remounts the
+  whole hierarchy read-only, so the Alby Hub unit would have failed to write its
+  SQLite DB. nix-bitcoin always pairs the two (`modules/lnd.nix:263`,
+  `modules/rtl.nix:222`).
+- **`uptime -p` is not supported** on this node's procps; `uptime -p` in a
+  verification script fails. Cosmetic.
+- **`test -d /mnt/data/pre-upgrade-*` does not glob**, so the backup-presence
+  check in the activate script printed a false `NO`. `test` needs an unquoted
+  glob expanded by the shell or a `compgen`/loop.
+- **`chown cody:cody` fails** — there is no `cody` group; `cody` is in `users`.
+  Use `$(id -gn)`.
+- **`nix build /nix/store/<path>` does not work** (fails with *dont know how to
+  build these paths*). Build the flake attribute with `--print-out-paths`
+  instead. This invalidated the first version of the documented deploy flow.
+- **Bare `nix fmt` passes no files** in this repo and alejandra then reads empty
+  stdin, failing with *unexpected end of file*. Use explicit paths
+  (`nix fmt flake.nix configuration.nix`) or `nix run nixpkgs#alejandra -- --check …`.
+  `flake.formatter` has been added so `nix fmt <paths>` works.
+- **`nix fmt` will rewrite `hardware-configuration.nix`**, which is
+  auto-generated. Pass only the files you edited, or revert that file.
+- **Port 9735 is also dead in the firewall**, not just 8081. With
+  `services.lnd.tor.proxy = true`, LND binds `127.0.0.1:9735`; inbound peers
+  arrive over the onion service.
+
+### New finding: the Tailscale Bitcoin Core RPC never worked
+
+Commit `0bda8a0` added this to `services.bitcoind.extraConfig`:
+
+```nix
+rpcbind=100.94.170.33
+rpcallowip=100.64.0.0/10
+```
+
+nix-bitcoin writes `rpcbind=127.0.0.1` and `rpcallowip=127.0.0.1` into the same
+`bitcoin.conf`, and **`rpcbind` is a scalar option where the first value wins**.
+From bitcoind's own log:
+
+```
+Config file arg: rpcallowip="127.0.0.1"
+Config file arg: rpcallowip="100.64.0.0/10"   <- both applied (list option)
+Config file arg: rpcbind="127.0.0.1"           <- only the first applied
+```
+
+So `rpcbind=100.94.170.33` is silently dropped, bitcoind listens only on
+`127.0.0.1:8332`, and port 8332 is therefore unreachable over Tailscale
+(confirmed refused from a tailnet peer). The fix is the module option, not the
+config file:
+
+```nix
+services.bitcoind.rpc.address = "100.94.170.33";   # modules/bitcoind.nix:87
+```
+
+with the redundant `rpcbind` line removed from `extraConfig`. `rpcallowip` must
+stay (nix-bitcoin only writes `127.0.0.1`). **Not yet applied** — it changes the
+RPC exposure of a live service.
+
+### Network facts (measured 2026-10-09)
+
+- Node is `192.168.86.16/24` behind a home router (`192.168.86.1`) — plain NAT.
+- **No global IPv6** (only `fe80::` link-local and the Tailscale ULA), so there is
+  no hidden IPv6 exposure.
+- SSH connections arrive on `100.94.170.33` (tailscale0) from peer `x1`.
+- Live firewall ports: 22, 8080 (mempool/nginx), 3000 (rtl), 8082 (albyhub).
+- Loopback-only, so no firewall rule needed: 8081 (LND REST), 9735 (LND P2P),
+  8332 (bitcoind RPC, see above).
 
 ## Appendix B — reference links
 

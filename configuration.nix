@@ -117,19 +117,32 @@
   };
 
   # Open ports in the firewall.
+  # Audited against `ss -tln` on 2026-10-08: every entry below has a matching
+  # socket bound to a routable address. Ports that sound relevant but are
+  # absent are accounted for under 'Deliberately not opened'.
   networking.firewall.allowedTCPPorts = [
     22 # SSH
-    8080 # mempool explorer
+    8080 # mempool explorer (nginx)
     3000 # RTL (Ride The Lightning)
-    8081 # LND REST API
     8082 # Alby Hub
-    9735 # LND peer connections
     # # Liquid sidechain (disabled)
     # 7041 # Liquid RPC
     # 7042 # Liquid P2P
   ];
-  # Bitcoin Core RPC — Tailscale interface only (for Sparrow on desktop)
+  # Bitcoin Core RPC — Tailscale interface only (for Sparrow on desktop).
+  # NOTE: this rule has no effect as configured. `rpcbind` is a scalar option and
+  # the first value in bitcoin.conf wins, so the `rpcbind=127.0.0.1` written by
+  # nix-bitcoin overrides any rpcbind set via services.bitcoind.extraConfig.
+  # bitcoind currently listens on 127.0.0.1:8332 only. To actually expose it,
+  # set services.bitcoind.rpc.address in flake.nix instead of extraConfig.
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = [8332];
+
+  # Deliberately not opened:
+  #   8081 — LND REST binds 127.0.0.1 only (nix-bitcoin's restAddress
+  #          default), so no firewall rule is needed or useful.
+  #   9735 — LND's clearnet P2P port also binds 127.0.0.1 because
+  #          services.lnd.tor.proxy is true; inbound peers arrive over Tor
+  #          via nix-bitcoin.onionServices.lnd.public.
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;

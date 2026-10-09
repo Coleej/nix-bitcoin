@@ -2,41 +2,73 @@
 
 ## Overview
 
-Flake-based NixOS system configuration using [nix-bitcoin](https://github.com/fort-nix/nix-bitcoin) for running Bitcoin Core and c-lightning nodes.
+Flake-based NixOS system configuration using [nix-bitcoin](https://github.com/fort-nix/nix-bitcoin) for running a Bitcoin Core + LND node.
+
+> **nix-bitcoin is archived and unmaintained as of 2026-08-13.** v0.0.139 is the
+> final release; there will be no further updates or security fixes from that
+> project. This flake pins the tag `github:fort-nix/nix-bitcoin/v0.0.139`
+> (commit `37931e52881956c7d6ace2f56415f54b012000a1`).
+>
+> Note: GitHub's REST API still reports `archived: false` for that repo (the
+> Archive button was never pressed). The README warning is the authoritative
+> signal, so do not use the API field to judge maintenance status.
+>
+> Because upstream is frozen, `inputs.nixpkgs` deliberately does **not** follow
+> nix-bitcoin's nixpkgs. See the Flakes-first note in Code Style Guidelines.
 
 **Repository structure:**
 ```
 nix-bitcoin-flake/
 ├── flake.nix                  # Flake inputs + nixosSystem output builder
-├── configuration.nix         # User NixOS configuration ( imports hardware-configuration.nix)
+├── configuration.nix         # User NixOS config ( imports hardware-configuration.nix)
 ├── hardware-configuration.nix # Auto-generated hardware config (do not edit)
-└── flake.lock               # Locked dependencies
+├── flake.lock               # Locked dependencies
+├── docs/dev/                 # Implementation plans
+└── .gitignore               # `result` and friends (build symlinks)
 ```
+
+**Active services:** bitcoind, lnd, electrs, mempool (backend + frontend), rtl,
+mysql, tor, tailscale, albyhub (hand-written unit). clightning and liquidd are
+disabled.
+
+**Known-broken intent:** `services.bitcoind.rpc.address` is left at its default
+`127.0.0.1`, so the Bitcoin Core RPC port 8332 is not reachable over Tailscale.
+Setting `rpcbind` in `extraConfig` does *not* work: `rpcbind` is a scalar option
+and the first value in `bitcoin.conf` wins, which is nix-bitcoin's.
 
 ## Build / Eval Commands
 
 ### Evaluate the configuration
 ```bash
 # Evaluate system config (check for errors)
-nix eval .#nixosConfigurations.mynode.config.system.build.toplevel --json
+nix eval .#nixosConfigurations.nixbit.config.system.build.toplevel
 
 # Evaluate a specific option
-nix eval .#nixosConfigurations.mynode.config.services.bitcoind --json
+nix eval .#nixosConfigurations.nixbit.config.services.bitcoind --json
+
+# Package versions actually shipped by each service: bitcoin/lnd/electrs/rtl/
+# mempool come from config.nix-bitcoin.pkgs (nix-bitcoin pins some of them),
+# everything else from pkgs.
+nix eval --impure --json --expr '
+let c = builtins.getFlake (toString ./.);
+    nbp = c.nixosConfigurations.nixbit.config.nix-bitcoin.pkgs;
+in { lnd = nbp.lnd.version; bitcoin = nbp.bitcoin.version; rtl = nbp.rtl.version;
+     nginx = c.nixosConfigurations.nixbit.pkgs.nginx.version; }'
 ```
 
 ### Build and apply
 ```bash
 # Dry-run / type-check (always run this first!)
-sudo nixos-rebuild dry-activate --flake .#mynode
+sudo nixos-rebuild dry-activate --flake .#nixbit
 
 # Apply (build and activate - use this!)
-sudo nixos-rebuild switch --flake .#mynode
+sudo nixos-rebuild switch --flake .#nixbit
 
 # Build only (no switch)
-nixos-rebuild build --flake .#mynode
+nixos-rebuild build --flake .#nixbit
 
-# Test configuration syntax without building
-nix fmt --check .
+# Check formatting (alejandra, wired up as flake.formatter)
+nix fmt --check
 ```
 
 ### Remote deployment (build locally, push to nixbit)
@@ -45,11 +77,10 @@ Resolve the store path explicitly rather than relying on the `./result`
 symlink, so a stale build output cannot be pushed by accident:
 
 ```bash
-# Resolve the closure path from the flake + lock
-Toplevel=$(nix eval --raw .#nixosConfigurations.nixbit.config.system.build.toplevel)
-
-# Build it (--no-link skips creating ./result entirely)
-nix build --no-link "$Toplevel"
+# Build (--no-link skips creating ./result; --print-out-paths gives us the
+# closure path, so a stale build output cannot be pushed by accident)
+Toplevel=$(nix build --no-link --print-out-paths \
+  .#nixosConfigurations.nixbit.config.system.build.toplevel)
 
 # Push closure to nixbit
 nix copy --to ssh://cody@nixbit "$Toplevel"
@@ -57,6 +88,9 @@ nix copy --to ssh://cody@nixbit "$Toplevel"
 # Activate on nixbit (sudo over ssh)
 ssh -t cody@nixbit "sudo $Toplevel/bin/switch-to-configuration switch"
 ```
+
+Do not pass a bare store path to `nix build`: `nix build /nix/store/...` fails
+with a dont-know-how-to-build error. Build the flake attribute, as above.
 
 A new kernel only takes effect after a reboot:
 `ssh -t cody@nixbit 'sudo reboot'`, then verify with
@@ -72,13 +106,10 @@ nix build .#checks.x86_64-linux.default
 nix build .#checks.x86_64-linux.testClightning --show-trace
 ```
 
-### Nixel commands (optional wrapper)
-```bash
-# If nixel is installed
-nixel list
-nixel search bitcoind
-nixel enable bitcoind
-```
+### Nixel commands (removed — upstream gone, not in nixpkgs)
+`nixel` was nix-bitcoin's service-enabling wrapper. Upstream is gone and it is
+not in nixpkgs, so these commands no longer work. Enable services with the
+module options directly, e.g. `services.bitcoind.enable = true;`.
 
 ## Formatting / Linting
 
@@ -115,6 +146,14 @@ nix flake metadata .
 ### General Conventions
 
 - **Flakes-first**: Always use flakes. No channels or niv.
+- **Do not re-pin nixpkgs to nix-bitcoin.** `inputs.nixpkgs.url` intentionally
+  points at `github:NixOS/nixpkgs/nixos-26.05` instead of following
+  `nix-bitcoin/nixpkgs`, because nix-bitcoin is archived and its pin is frozen
+  at a 2026-08-09 revision. Following it would silently stop this machine from
+  receiving kernel, nginx, tor, tailscale and mariadb security backports.
+  nix-bitcoin's overlay still pins the bitcoin-stack packages it owns and pulls
+  lnd from its own frozen `nixpkgs-unstable`, so nothing else changes. Bump the
+  explicit branch when `nixos-26.11` is cut.
 - **Template structure**: Edit `flake.nix` for flake settings, `configuration.nix` for system config.
 - **Hardware config**: Never edit `hardware-configuration.nix` manually — regenerate with `nixos-generate-config`.
 - **State version**: Set `stateVersion` to the NixOS release (e.g., `"25.11"`).
@@ -134,7 +173,7 @@ nix flake metadata .
 
 - **Option names**: `lowerCamelCase` (NixOS standard).
 - **File names**: `kebab-case.nix` for modules.
-- **Host names**: `mynode` (as defined in flake.nix). Change if desired.
+- **Host names**: `nixbit` (as defined in flake.nix). Change if desired.
 - **Service names**: Follow nix-bitcoin conventions (e.g., `services.bitcoind`, `services.clightning`).
 
 ### Nixpkgs Usage
@@ -151,10 +190,40 @@ nix flake metadata .
 
 ### nix-bitcoin Specific
 
-- **Standard services**: `services.bitcoind`, `services.clightning`, `services.lnd`, `services.electrs`.
+- **Standard services**: `services.bitcoind`, `services.clightning`, `services.lnd`, `services.electrs`, `services.mempool`, `services.rtl`.
 - **Operator**: Set `nix-bitcoin.operator` to enable bitcoin-cli access for user.
 - **Presets**: Optionally use `nix-bitcoin modules/presets/secure-node.nix` for enhanced security.
 - **Testing**: Run `nixos-rebuild test` in a VM before production deployments.
+
+### Packages frozen at nix-bitcoin's last release
+
+These cannot be updated by `nix flake update` — nix-bitcoin builds or pins them
+itself and is archived. Verified on 2026-10-08:
+
+| Service | Version | Latest upstream | Updatable? |
+|---|---|---|---|
+| rtl | 0.15.8 | 0.15.13 | No `package` option; needs a vendored build. Missing GHSA-wj92-jhwh-85j5 (fixed in 0.15.12) |
+| mempool | 3.2.1 | 3.3.1 | No — NAPI/rust-gbt build, not vendorable |
+| electrs | 0.11.0 | 0.12.0 | No `package` option |
+| lnd | 0.21.1-beta | 0.21.4-beta | `services.lnd.package` exists, but only nixpkgs-unstable has a newer build |
+
+`bitcoind`, `albyhub`, `nginx`, `tor`, `mariadb`, `tailscale` and the base OS all
+come from our own `nixpkgs` input and track `nixos-26.05` normally.
+
+### Alby Hub (no upstream module)
+
+Alby Hub is a hand-written `systemd.services.albyhub` unit in `flake.nix`, because
+nix-bitcoin PR #794 proposed a module and was closed unmerged, and the project is
+now archived. Points to watch when editing it:
+
+- It runs as `cody` (not a system user) because it reads the LND macaroon from
+  that user's data dir.
+- `ProtectSystem = "strict"` requires `ReadWritePaths = ["/mnt/data/albyhub"]`,
+  otherwise Alby Hub cannot write its SQLite DB. nix-bitcoin pairs these the same
+  way (`modules/lnd.nix:263`, `modules/rtl.nix:222`).
+- The service reaches LND over gRPC on `127.0.0.1:10009` and needs outbound
+  network access, so do not add `IPAddressDeny` or a loopback-only
+  `RestrictAddressFamilies`.
 
 ## Adding Services
 
@@ -170,7 +239,7 @@ nix flake metadata .
    services.<service>.enable = true;
    ```
 
-3. Run `nix fmt` and `sudo nixos-rebuild dry-activate --flake .#mynode`
+3. Run `nix fmt` and `sudo nixos-rebuild dry-activate --flake .#nixbit`
 
 ### Common services
 
@@ -180,16 +249,20 @@ services.clightning.enable = true;
 services.lnd.enable = true;
 services.electrs.enable = true;
 services.btcpayserver.enable = true;
-services.joinmarket.enable = true;
 ```
+
+Do **not** enable `services.joinmarket`: JoinMarket is archived upstream and was
+removed from nix-bitcoin (issue #839, PR #850). Alby Hub is enabled the other
+way round — via a hand-written `systemd.services.albyhub` unit in `flake.nix`,
+because no upstream module exists (nix-bitcoin PR #794 was closed unmerged).
 
 ## Workflow Tips
 
 - **Before committing**: Run `nix fmt`
-- **Debugging**: Use `nix eval .#nixosConfigurations.mynode.config.services.bitcoind.settings`
+- **Debugging**: Use `nix eval .#nixosConfigurations.nixbit.config.services.bitcoind.settings`
 - **flake.lock**: Commit for reproducible builds. Update with `nix flake update`
 - **Testing changes**: Always use `nixos-rebuild dry-activate` first
-- **VM testing**: Use `nixos-rebuild test --flake .#mynode` or test in a VM before production
+- **VM testing**: Use `nixos-rebuild test --flake .#nixbit` or test in a VM before production
 
 ## Security Notes
 

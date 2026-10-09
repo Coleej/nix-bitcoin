@@ -24,6 +24,9 @@
     nix-bitcoin,
     ...
   }: {
+    # `nix fmt` / `nix fmt --check` (AGENTS.md documents this command).
+    formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
+
     nixosConfigurations.nixbit = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
