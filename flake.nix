@@ -18,17 +18,31 @@
   # tailscale, mariadb and openssl fixes. Bump to nixos-26.11 when cut.
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
+  # Second input, used for exactly one package: albyhub. nixos-26.05 carries
+  # 1.22.2 and nixpkgs-unstable carries 1.23.0; nothing else is taken from here,
+  # so the rest of the system stays on the supported stable branch. Do not start
+  # pulling other packages from this — see the nixpkgs policy note in AGENTS.md.
+  inputs.nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
   outputs = {
     self,
     nixpkgs,
+    nixpkgs-unstable,
     nix-bitcoin,
     ...
-  }: {
+  }: let
+    # albyhub from nixpkgs-unstable. See that input's comment above: this exists
+    # solely because the stable branch is behind on this one package.
+    albyhubUnstable = nixpkgs-unstable.legacyPackages.x86_64-linux.albyhub;
+  in {
     # `nix fmt` / `nix fmt --check` (AGENTS.md documents this command).
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
 
     nixosConfigurations.nixbit = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = {
+        inherit albyhubUnstable;
+      };
       modules = [
         # nix-bitcoin service definitions and secret management
         nix-bitcoin.nixosModules.default
@@ -41,9 +55,11 @@
         ./configuration.nix
 
         # nix-bitcoin overlay — kept in a separate inline module so it is
-        # clearly separated from the general system config.
+        # clearly separated from the general system config. `albyhubUnstable`
+        # arrives via specialArgs from the nixpkgs-unstable input.
         (
           {
+            albyhubUnstable,
             lib,
             pkgs,
             ...
@@ -199,6 +215,8 @@
             # module" was closed unmerged, and nix-bitcoin is now archived), so
             # this unit stays hand-rolled. It runs as `cody` rather than a system
             # user because the LND macaroon it reads lives in the user's data dir.
+            # The binary comes from nixpkgs-unstable (1.23.0) since the stable
+            # branch is still on 1.22.2 — see the input comment at the top.
             # ---------------------------------------------------------------------------
             systemd.services.albyhub = {
               description = "Alby Hub — Nostr Wallet Connect server for LND";
@@ -214,7 +232,7 @@
                 XDG_DATA_HOME = "/mnt/data/albyhub";
               };
               serviceConfig = {
-                ExecStart = "${lib.getExe pkgs.albyhub}";
+                ExecStart = "${lib.getExe albyhubUnstable}";
                 User = "cody";
                 WorkingDirectory = "/mnt/data/albyhub";
                 # Required because ProtectSystem=strict below remounts the whole
