@@ -6,7 +6,13 @@
   lib,
   pkgs,
   ...
-}: {
+}: let
+  # Sudoers cannot express "this systemctl subcommand with any following
+  # arguments" — it matches argument lists, so a rule for `systemctl is-active`
+  # permits exactly that one argument and denies `systemctl is-active bitcoind`.
+  # The allowlist therefore lives inside a wrapper that sudoers can name.
+  agentsystemctl = pkgs.callPackage ./agentsystemctl.nix {};
+in {
   imports = [
     # Include the results of the hardware scan.
     ./hardware-configuration.nix
@@ -137,13 +143,14 @@
   # Sudoers argument matching, verified on this node with `sudo -n`: a rule
   # with NO argument specifier matches the command with ANY arguments, while a
   # trailing `""` means NO arguments are allowed. `""` is therefore deliberately
-  # absent here — using it would make each rule usable only with zero arguments,
-  # i.e. `systemctl is-active` would be permitted but `systemctl is-active
-  # bitcoind` would not be.
+  # absent here — using it would make each rule usable only with zero arguments.
   #
-  # What the command choices permit: systemctl also has root-editing
-  # subcommands (edit, set-property, link), so only the specific verbs below are
-  # granted rather than systemctl as a whole.
+  # Sudoers matches argument LISTS, not subcommands. A rule written as
+  # `systemctl is-active` permits exactly that one argument and denies
+  # `systemctl is-active bitcoind`, because sudo sees the arguments as
+  # "is-active bitcoind". There is no sudoers syntax for "this subcommand with
+  # any following arguments", so systemctl is reached through the
+  # agentsystemctl wrapper above, which enforces the subcommand allowlist.
   #
   # Note: this targets classic sudo (`security.sudo`, enabled by default). If
   # you ever switch this node to `security.sudo-rs`, re-check the rule — sudo-rs
@@ -156,85 +163,25 @@
       runAs = "root";
       commands = [
         {
+          # Bare command, no argument specifier: sudoers then permits it with
+          # ANY arguments. See the argument-matching note above.
           command = ''/run/current-system/sw/bin/nixos-rebuild'';
           options = [
             "NOPASSWD"
           ];
         }
         {
+          # Wildcard path. This is what lets an agent activate a closure, which
+          # is why the whole grant is effectively root — see the security note.
           command = "/nix/store/*/bin/switch-to-configuration";
           options = [
             "NOPASSWD"
           ];
         }
         {
-          command = ''/run/current-system/sw/bin/systemctl status'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl show'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl is-active'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl is-enabled'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl list-units'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl list-unit-files'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl cat'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl start'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl stop'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl restart'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = ''/run/current-system/sw/bin/systemctl reload'';
-          options = [
-            "NOPASSWD"
-          ];
-        }
-        {
-          command = "/run/current-system/sw/bin/systemctl daemon-reload";
+          # systemctl access goes through the wrapper, because sudoers cannot
+          # scope a subcommand. The wrapper checks the subcommand allowlist.
+          command = "${agentsystemctl}";
           options = [
             "NOPASSWD"
           ];
