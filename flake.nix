@@ -47,7 +47,16 @@
             lib,
             pkgs,
             ...
-          }: {
+          }: let
+            # RTL 0.15.13, vendored because nix-bitcoin is archived and frozen
+            # at 0.15.8 (missing GHSA-wj92-jhwh-85j5). Injected via
+            # systemd.services.rtl.overrideConfig below, because nix-bitcoin's
+            # rtl module hardcodes its own rtl package in ExecStart and offers
+            # no package option to override.
+            rtlOverride = pkgs.callPackage ./pkgs/rtl.nix {
+              fetchNodeModules = pkgs.callPackage ./pkgs/fetch-node-modules.nix {};
+            };
+          in {
             # ---------------------------------------------------------------------------
             # nix-bitcoin secrets
             # ---------------------------------------------------------------------------
@@ -167,6 +176,14 @@
               address = "0.0.0.0";
               port = 3000;
             };
+
+            # Swap in the vendored RTL 0.15.13. A targeted mkForce on ExecStart
+            # beats nix-bitcoin's definition of that single key while leaving the
+            # rest of its unit intact (hardening, ExecStartPre macaroon installs,
+            # User, WorkingDirectory). Note that
+            # systemd.services.<name>.overrideConfig no longer exists in current
+            # nixpkgs, so this is how the override has to be done.
+            systemd.services.rtl.serviceConfig.ExecStart = lib.mkForce "${rtlOverride}/bin/rtl";
 
             # ---------------------------------------------------------------------------
             # Liquid sidechain (disabled - saves ~2-4GB RAM)
